@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>登录页面 — TDD 测试验证</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/login.css">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body.test-runner { font-family: 'DM Sans', sans-serif; background: #f6f3ee; padding: 2rem; color: #1c1917; }
+    .test-runner h1 { font-family: 'Fraunces', Georgia, serif; margin-bottom: 1.5rem; }
+    .test-summary { background: #fff; border-radius: 10px; padding: 1.25rem; margin-bottom: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .test-summary h2 { font-size: 1.1rem; margin-bottom: 0.5rem; }
+    .stats { display: flex; gap: 1rem; flex-wrap: wrap; }
+    .stat { padding: 0.5rem 1rem; border-radius: 6px; font-weight: 600; font-size: 0.9rem; }
+    .stat.pass { background: #ecfdf5; color: #059669; }
+    .stat.fail { background: #fef2f2; color: #dc2626; }
+    .stat.total { background: #f5f5f4; color: #1c1917; }
+    .test-card { background: #fff; border: 1px solid #ede8e0; border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: 0.75rem; }
+    .test-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem; flex-wrap: wrap; }
+    .test-id { font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; color: #a8a29e; font-weight: 500; }
+    .test-name { font-weight: 600; font-size: 0.9rem; }
+    .test-status { font-size: 0.78rem; padding: 2px 10px; border-radius: 20px; font-weight: 600; }
+    .test-status.pass { background: #ecfdf5; color: #059669; }
+    .test-status.fail { background: #fef2f2; color: #dc2626; }
+    .test-assert { font-size: 0.78rem; margin-top: 0.25rem; font-family: 'JetBrains Mono', monospace; margin-left: 0.5rem; }
+    .test-assert.pass { color: #059669; }
+    .test-assert.fail { color: #dc2626; }
+    .module-badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; background: #fef6f3; color: #e85d3a; font-weight: 500; }
+  </style>
+</head>
+<body class="test-runner">
+  <h1>🧪 登录页面 — TDD 测试验证</h1>
+  <div class="test-summary" id="summary">
+    <h2>测试结果</h2>
+    <div class="stats">
+      <span class="stat total" id="totalStat">总计: 0</span>
+      <span class="stat pass" id="passStat">通过: 0</span>
+      <span class="stat fail" id="failStat">失败: 0</span>
+    </div>
+  </div>
+  <div id="testResults"></div>
+
+  <!-- Hidden login fixture for testing -->
+  <div class="login-page" style="position:absolute;left:-9999px;top:0;" id="loginTestFixture">
+    <div class="login-card">
+      <div class="login-header">
+        <div class="login-logo">R</div>
+        <h1 class="login-title">用户登录</h1>
+        <p class="login-subtitle">欢迎使用需求管理系统</p>
+      </div>
+      <form class="login-form" id="loginForm" novalidate>
+        <div class="form-group">
+          <label class="form-label" for="username">用户名</label>
+          <input class="form-input" type="text" id="username" placeholder="请输入用户名" autocomplete="username">
+          <div class="field-error" id="usernameError"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="password">密码</label>
+          <input class="form-input" type="password" id="password" placeholder="请输入密码" autocomplete="current-password">
+          <div class="field-error" id="passwordError"></div>
+        </div>
+        <label class="remember-me">
+          <input type="checkbox" id="rememberMe">
+          <span class="checkbox-custom"></span>
+          <span class="checkbox-label">记住用户名</span>
+        </label>
+        <button type="submit" class="btn-login" id="loginBtn">
+          <span class="spinner"></span>
+          <span class="btn-text">登 录</span>
+        </button>
+      </form>
+      <div class="login-success"><div class="success-icon">✓</div><h3>欢迎回来！</h3><p>正在跳转...</p></div>
+      <div class="login-footer">还没有账号？<a href="#">联系管理员</a></div>
+    </div>
+  </div>
+
+  <script src="/js/login.js"></script>
+  <script>
+    // ── Test Runner ──
+    const results = [];
+
+    function test(id, name, module, fn) {
+      const result = { id, name, module, assertions: [], passed: true };
+      try {
+        fn({
+          assert: (condition, msg) => {
+            if (!condition) { result.passed = false; result.assertions.push({ pass: false, msg }); }
+            else { result.assertions.push({ pass: true, msg }); }
+          },
+          equal: (a, b, msg) => {
+            if (a !== b) { result.passed = false; result.assertions.push({ pass: false, msg: `${msg}: 期望 "${b}", 得到 "${a}"` }); }
+            else { result.assertions.push({ pass: true, msg }); }
+          },
+          style: (el, prop, expected, msg) => {
+            if (!el) { result.passed = false; result.assertions.push({ pass: false, msg: `${msg}: 元素不存在` }); return; }
+            const computed = getComputedStyle(el);
+            const actual = computed[prop];
+            if (actual !== expected) { result.passed = false; result.assertions.push({ pass: false, msg: `${msg}: ${prop} = "${actual}", 期望 "${expected}"` }); }
+            else { result.assertions.push({ pass: true, msg: `${msg}: ${prop} = "${actual}"` }); }
+          }
+        });
+      } catch (e) {
+        result.passed = false;
+        result.assertions.push({ pass: false, msg: `异常: ${e.message}` });
+      }
+      results.push(result);
+    }
+
+    function renderResults() {
+      const passed = results.filter(r => r.passed).length;
+      const failed = results.filter(r => !r.passed).length;
+
+      document.getElementById('totalStat').textContent = `总计: ${results.length}`;
+      document.getElementById('passStat').textContent = `通过: ${passed}`;
+      document.getElementById('failStat').textContent = `失败: ${failed}`;
+
+      const container = document.getElementById('testResults');
+      container.innerHTML = results.map(r => `
+        <div class="test-card">
+          <div class="test-header">
+            <span class="test-status ${r.passed ? 'pass' : 'fail'}">${r.passed ? '✅ PASS' : '❌ FAIL'}</span>
+            <span class="test-id">${r.id}</span>
+            <span class="test-name">${r.name}</span>
+            <span class="module-badge">${r.module}</span>
+          </div>
+          ${r.assertions.map(a => `<div class="test-assert ${a.pass ? 'pass' : 'fail'}">${a.pass ? '✓' : '✗'} ${a.msg}</div>`).join('')}
+        </div>
+      `).join('');
+    }
+
+    // ═══════════════════════════════════════════════
+    //  TESTS
+    // ═══════════════════════════════════════════════
+
+    // TC-01: 卡片居中布局
+    test('TC-01', '登录卡片桌面端居中', 'CSS布局', ({ assert, style }) => {
+      const card = document.querySelector('.login-card');
+      assert(!!card, '.login-card 元素存在');
+      const wrapper = card?.closest('.login-page');
+      if (wrapper) {
+        style(wrapper, 'display', 'flex', '.login-page display: flex');
+        style(wrapper, 'alignItems', 'center', '.login-page align-items: center');
+        style(wrapper, 'justifyContent', 'center', '.login-page justify-content: center');
+      }
+    });
+
+    // TC-02: 卡片圆角
+    test('TC-02', '卡片 border-radius 16px', 'CSS样式', ({ assert }) => {
+      const card = document.querySelector('.login-card');
+      assert(!!card, '.login-card 元素存在');
+      if (!card) return;
+      const br = getComputedStyle(card).borderRadius;
+      assert(br === '16px', `border-radius = ${br}, 期望 16px`);
+    });
+
+    // TC-03: 卡片阴影
+    test('TC-03', '卡片多层 box-shadow', 'CSS样式', ({ assert }) => {
+      const card = document.querySelector('.login-card');
+      assert(!!card, '.login-card 元素存在');
+      if (!card) return;
+      const shadow = getComputedStyle(card).boxShadow;
+      assert(shadow !== 'none', 'box-shadow 不为 none');
+      assert(shadow.includes('rgba') || shadow.includes('rgb'), 'box-shadow 使用颜色值');
+      // 多层阴影用逗号分隔
+      assert(shadow.includes(','), 'box-shadow 为多层阴影');
+    });
+
+    // TC-04: 输入框聚焦动画
+    test('TC-04', '输入框聚焦 border 渐变', 'CSS动画', ({ assert }) => {
+      const input = document.querySelector('.login-form .form-input');
+      assert(!!input, '输入框元素存在');
+      if (!input) return;
+      const transition = getComputedStyle(input).transition;
+      assert(transition.includes('all') || transition.includes('border') || transition.includes('background'), 'transition 包含样式过渡');
+      assert(transition.includes('0.22') || transition.includes('0.2'), 'transition 时长约 220ms');
+    });
+
+    // TC-05: 表单验证错误
+    test('TC-05', '空表单提交显示红色错误样式', '表单验证', ({ assert }) => {
+      const input = document.querySelector('.login-form .form-input');
+      assert(!!input, '输入框元素存在');
+
+      // 验证 .error 样式类定义在 CSS 中
+      const sheets = document.styleSheets;
+      let hasErrorStyle = false;
+      let hasFieldError = false;
+      for (const sheet of sheets) {
+        try {
+          const rules = sheet.cssRules || sheet.rules;
+          if (!rules) continue;
+          for (const rule of rules) {
+            const text = rule.cssText || '';
+            if (text.includes('.form-input.error') || text.includes('input.error')) hasErrorStyle = true;
+            if (text.includes('.field-error')) hasFieldError = true;
+          }
+        } catch(e) { /* cross-origin */ }
+      }
+      assert(hasErrorStyle, '.form-input.error 样式已定义');
+      assert(hasFieldError, '.field-error 样式已定义');
+
+      // JS 验证函数测试
+      const fieldError = document.querySelector('.field-error');
+      assert(!!fieldError, '错误消息元素存在');
+      assert(fieldError.classList.contains('visible') === false, '初始状态错误消息隐藏');
+    });
+
+    // TC-06: 移动端适配
+    test('TC-06', '@media 响应式断点', '响应式', ({ assert }) => {
+      const sheets = document.styleSheets;
+      let hasMedia480 = false, hasMedia768 = false;
+      for (const sheet of sheets) {
+        try {
+          const rules = sheet.cssRules || sheet.rules;
+          if (!rules) continue;
+          for (const rule of rules) {
+            if (rule.constructor.name === 'CSSMediaRule' || rule.type === CSSRule.MEDIA_RULE) {
+              const cond = rule.conditionText || '';
+              if (cond.includes('480')) hasMedia480 = true;
+              if (cond.includes('768')) hasMedia768 = true;
+            }
+          }
+        } catch(e) { /* cross-origin */ }
+      }
+      assert(hasMedia480, '@media (max-width: 480px) 手机断点');
+      assert(hasMedia768, '@media (max-width: 768px) 平板断点');
+    });
+
+    // TC-07: 复选框自定义样式
+    test('TC-07', '记住密码自定义复选框', 'CSS样式', ({ assert }) => {
+      const checkbox = document.querySelector('.remember-me input[type="checkbox"]');
+      assert(!!checkbox, '复选框元素存在');
+      if (!checkbox) return;
+      // 原生 checkbox 应当隐藏
+      const computed = getComputedStyle(checkbox);
+      assert(computed.opacity === '0' || computed.position === 'absolute', '原生 checkbox 隐藏 (opacity=0)');
+      // 自定义样式元素应当存在
+      const custom = document.querySelector('.checkbox-custom');
+      assert(!!custom, '.checkbox-custom 元素存在');
+      const customStyle = getComputedStyle(custom);
+      assert(customStyle.borderRadius.includes('50') || customStyle.borderRadius.includes('50%'), '自定义复选框圆形');
+    });
+
+    // TC-08: 登录按钮 loading
+    test('TC-08', '按钮 loading 状态', 'CSS样式', ({ assert }) => {
+      const btn = document.querySelector('.btn-login');
+      assert(!!btn, '.btn-login 按钮存在');
+      const spinner = document.querySelector('.btn-login .spinner');
+      assert(!!spinner, '.spinner 元素存在');
+      // 验证 loading 样式
+      const sheets = document.styleSheets;
+      let hasLoading = false;
+      let hasSpinKeyframes = false;
+      for (const sheet of sheets) {
+        try {
+          const rules = sheet.cssRules || sheet.rules;
+          if (!rules) continue;
+          for (const rule of rules) {
+            const text = rule.cssText || '';
+            if (text.includes('.btn-login.loading')) hasLoading = true;
+            if (text.includes('@keyframes btn-spin') || (rule.constructor.name === 'CSSKeyframesRule' && rule.name === 'btn-spin')) hasSpinKeyframes = true;
+          }
+        } catch(e) { /* ignore */ }
+      }
+      assert(hasLoading, '.btn-login.loading 样式已定义');
+      assert(hasSpinKeyframes, '@keyframes btn-spin 动画已定义');
+    });
+
+    // TC-09: 页面标题
+    test('TC-09', '页面标题正确', 'HTML', ({ assert }) => {
+      assert(document.title === '用户登录 — 需求管理系统', `标题 = "${document.title}"`);
+    });
+
+    // TC-10: 表单结构
+    test('TC-10', '表单元素完整', 'HTML', ({ assert }) => {
+      assert(!!document.getElementById('username'), '用户名输入框存在');
+      assert(!!document.getElementById('password'), '密码输入框存在');
+      assert(!!document.getElementById('rememberMe'), '记住密码复选框存在');
+      assert(!!document.getElementById('loginBtn'), '登录按钮存在');
+      const form = document.getElementById('loginForm');
+      assert(!!form, '表单元素存在');
+      assert(form.getAttribute('novalidate') !== null, '表单使用 novalidate（自定义验证）');
+    });
+
+    // TC-11: CSS 变量复用
+    test('TC-11', '复用主题 CSS 变量', 'CSS样式', ({ assert }) => {
+      const card = document.querySelector('.login-card');
+      if (!card) return;
+      const computed = getComputedStyle(card);
+      const bg = computed.backgroundColor;
+      assert(bg === 'rgb(255, 255, 255)' || bg.includes('255,255,255') || bg === 'white', '卡片背景色为白色 (--bg-surface)');
+    });
+
+    // TC-12: 登录成功状态
+    test('TC-12', '登录成功显示正确', 'HTML', ({ assert }) => {
+      const success = document.querySelector('.login-success');
+      assert(!!success, '.login-success 元素存在');
+      assert(success.classList.contains('show') === false, '初始状态隐藏');
+      const successIcon = success.querySelector('.success-icon');
+      assert(!!successIcon, '成功图标存在');
+    });
+
+    // ═══════════════════════════════════════════════
+    //  Render results
+    // ═══════════════════════════════════════════════
+
+    window.addEventListener('load', () => setTimeout(renderResults, 800));
+    setTimeout(renderResults, 2000);
+  </script>
+</body>
+</html>

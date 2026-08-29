@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>用户登录 — 需求管理系统</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/login.css">
+</head>
+<body>
+  <div class="login-page">
+    <div class="login-card">
+      <!-- Header -->
+      <div class="login-header">
+        <div class="login-logo">R</div>
+        <h1 class="login-title">用户登录</h1>
+        <p class="login-subtitle">欢迎使用需求管理系统</p>
+      </div>
+
+      <!-- Login Form -->
+      <form class="login-form" id="loginForm" novalidate>
+        <!-- 用户名 -->
+        <div class="form-group">
+          <label class="form-label" for="username">用户名</label>
+          <input
+            class="form-input"
+            type="text"
+            id="username"
+            name="username"
+            placeholder="请输入用户名"
+            autocomplete="username"
+            autofocus
+          >
+          <div class="field-error" id="usernameError"></div>
+        </div>
+
+        <!-- 密码 -->
+        <div class="form-group">
+          <label class="form-label" for="password">密码</label>
+          <input
+            class="form-input"
+            type="password"
+            id="password"
+            name="password"
+            placeholder="请输入密码"
+            autocomplete="current-password"
+          >
+          <div class="field-error" id="passwordError"></div>
+        </div>
+
+        <!-- 记住密码 -->
+        <label class="remember-me">
+          <input type="checkbox" id="rememberMe">
+          <span class="checkbox-custom"></span>
+          <span class="checkbox-label">记住用户名</span>
+        </label>
+
+        <!-- 登录按钮 -->
+        <button type="submit" class="btn-login" id="loginBtn">
+          <span class="spinner"></span>
+          <span class="btn-text">登 录</span>
+        </button>
+      </form>
+
+      <!-- Success State -->
+      <div class="login-success">
+        <div class="success-icon">✓</div>
+        <h3>欢迎回来！</h3>
+        <p>正在跳转到系统主页...</p>
+      </div>
+
+      <!-- Footer -->
+      <div class="login-footer">
+        还没有账号？<a href="#">联系管理员</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/login.js"></script>
+</body>
+</html>
