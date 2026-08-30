@@ -4,7 +4,7 @@ const path = require('path');
 const cors = require('cors');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(cors());
@@ -41,6 +41,11 @@ const upload = multer({
 // Routes
 const requirementsRouter = require('./routes/requirements');
 const systemsRouter = require('./routes/systems');
+
+// 初始化 dsh 执行内核（从 passthrough 移植，进程内嵌）
+const engine = require('./dsh-engine');
+const { db, now } = require('./db');
+engine.init(db, now);
 
 // Wrap the router with multer middleware for the create route
 app.use('/api/requirements', (req, res, next) => {

@@ -55,6 +55,16 @@ function route() {
   }
 }
 
+// ── List auto-refresh ──
+let listRefreshTimer = null;
+function scheduleListRefresh() {
+  if (listRefreshTimer) clearTimeout(listRefreshTimer);
+  listRefreshTimer = setTimeout(() => {
+    const p = window.location.pathname;
+    if (p === '/' || p === '') renderList();
+  }, 3000);
+}
+
 // ── Render: List ──
 async function renderList() {
   app.innerHTML = '<div class="loading-overlay"><div class="loading-spinner"></div> 加载中...</div>';
@@ -71,6 +81,7 @@ async function renderList() {
   const pending = data.filter(r => r.status === 'pending').length;
   const running = data.filter(r => r.status === 'running').length;
   const completed = data.filter(r => r.status === 'completed').length;
+  const runningReq = data.find(r => r.status === 'running');
 
   let cardsHtml = '';
   if (data.length === 0) {
@@ -83,7 +94,7 @@ async function renderList() {
   } else {
     cardsHtml = data.map(r => {
       const statusClass = r.status;
-      let statusText = { pending: '待执行', running: '执行中', completed: '已完成' }[r.status] || r.status;
+      let statusText = { pending: '待执行', running: '执行中', completed: '已完成', failed: '失败' }[r.status] || r.status;
       const giteeTag = r.gitee_repo
         ? `<span class="tag gitee"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg> ${r.gitee_repo}</span>`
         : '';
@@ -120,6 +131,7 @@ async function renderList() {
         <p class="page-subtitle">共 ${total} 个需求 · 管理你的项目需求</p>
       </div>
       <div style="display:flex;gap:10px;align-items:center;">
+        ${runningReq ? `<button class="btn btn-accent btn-lg" onclick="navigate('/detail/${runningReq.id}')">⏭ 跳转到执行中</button>` : ''}
         <button class="btn btn-secondary btn-lg" onclick="showSystemsManager()">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
           系统管理
@@ -152,6 +164,8 @@ async function renderList() {
 
     <div class="req-list">${cardsHtml}</div>
   `;
+
+  scheduleListRefresh();
 }
 
 // ── Render: Detail ──
@@ -192,7 +206,7 @@ async function renderDetail(id) {
         开始执行
        </button>`;
 
-  const statusText = { pending: '待执行', running: '执行中', completed: '已完成' }[reqData.status] || reqData.status;
+  const statusText = { pending: '待执行', running: '执行中', completed: '已完成', failed: '失败' }[reqData.status] || reqData.status;
 
   app.innerHTML = `
     <a class="back-link" href="/" onclick="event.preventDefault(); navigate('/')">← 返回列表</a>
@@ -262,24 +276,18 @@ async function renderDetail(id) {
         执行记录
       </div>
       <div class="section-content">
-        ${lastExec
-          ? `<div style="margin-bottom:12px;">
-               <span style="color:var(--text-tertiary);font-size:0.8rem;">上次执行:</span>
-               <span style="font-family:var(--font-mono);font-size:0.8rem;color:var(--text-secondary);margin-left:8px;">
-                 ${formatDate(lastExec.started_at)}
-               </span>
-               <span class="status-badge ${lastExec.status}" style="margin-left:8px;font-size:0.7rem;">
-                 <span class="status-dot"></span>${lastExec.status === 'completed' ? '已完成' : lastExec.status}
-               </span>
-             </div>`
-          : '<span style="color:var(--text-tertiary);font-style:italic;">暂无执行记录</span>'}
+        ${lastExec ? '' : '<span style="color:var(--text-tertiary);font-style:italic;">暂无执行记录</span>'}
+        <div id="execProgressPanel"></div>
       </div>
     </div>
 
-    <div id="execProgressPanel"></div>
-
     ${resultHtml ? `<div class="execution-panel">${resultHtml}</div>` : ''}
   `;
+
+  // Auto-poll progress if running or has a completed execution
+  if (isRunning || (lastExec && lastExec.status === 'completed')) {
+    setTimeout(() => pollExecutionProgress(id), 300);
+  }
 }
 
 // ── Render Execution Result ──
@@ -381,30 +389,18 @@ async function executeAndPoll(id) {
       badge.innerHTML = '<span class="status-dot"></span>执行中';
     }
 
-    // Start execution
-    const data = await api('POST', '/' + id + '/execute');
+    // Start execution — 默认走 DSH 模式（pending 执行交给 DSH 桥接器/AI 引擎）
+    const data = await api('POST', '/' + id + '/execute', { mode: 'dsh' });
     const execId = data.execution_id;
 
-    // Insert live progress panel
+    // Insert live progress panel（极简占位，轮询开始后由座舱接管）
     const panel = document.getElementById('execProgressPanel');
     if (panel) {
       panel.innerHTML = `
-        <div class="execution-panel" id="execProgressPanelInner">
-          <div class="section-title">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-            执行进度
-            <span style="margin-left:8px;font-size:0.75rem;font-weight:400;color:var(--blue);">进行中...</span>
-          </div>
-          <div class="progress-steps">
-            ${['parsing','gitee','datasource','summarize'].map(s => `
-              <div class="progress-step pending">
-                <div class="step-icon">⬜</div>
-                <div class="step-info">
-                  <div class="step-label">${s === 'parsing' ? '📄 解析需求文档' : s === 'gitee' ? '🔗 获取 Gitee 仓库信息' : s === 'datasource' ? '🗄️ 关联数据源' : '📋 生成执行报告'}</div>
-                </div>
-              </div>
-            `).join('')}
-          </div>
+        <div class="section-title" style="margin-top:0.5rem;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          📜 执行日志
+          <span style="margin-left:8px;font-size:0.75rem;font-weight:400;color:var(--text-tertiary);">已发起，正在建立执行...</span>
         </div>`;
     }
 
@@ -427,26 +423,96 @@ function pollExecutionProgress(reqId) {
       const d = data.data;
       if (d.status === 'none') return;
 
-      // Render current steps
-      panel.innerHTML = renderProgressSteps(d.logs, d.status);
+      // Render full cockpit: steps + logs + agent teams (+ result when done)
+      renderCockpit(panel, d);
 
-      if (d.status === 'running') {
+      if (d.status === 'running' || d.status === 'pending') {
         // Poll again in 1.2s
         setTimeout(() => pollExecutionProgress(reqId), 1200);
-      } else if (d.status === 'completed' && d.result) {
-        // Execution done — append result after a short pause
-        setTimeout(() => {
-          const resultHtml = renderExecutionResult(d.result);
-          panel.innerHTML = renderProgressSteps(d.logs, d.status) + resultHtml;
-          // Update the button and status badge in the header
-          updateDetailAfterCompletion(reqId);
-        }, 500);
+      } else if (d.status === 'completed' || d.status === 'failed') {
+        // Update the button and status badge in the header
+        setTimeout(() => updateDetailAfterCompletion(reqId), 300);
       }
     })
     .catch(() => {
       // Retry after delay
       setTimeout(() => pollExecutionProgress(reqId), 2000);
     });
+}
+
+// ── Execution cockpit: 日志流 + AgentTeams 团队 + 结果（执行进度区块暂不展示）──
+function renderCockpit(panel, d) {
+  let html = renderLogFeed(d.logs, d.status)
+    + renderAgentTeams(d.agent_teams);
+  if (d.status === 'completed' && d.result) {
+    html += renderExecutionResult(d.result);
+  }
+  panel.innerHTML = html;
+}
+
+function renderLogFeed(logs, status) {
+  const rich = (logs || []).filter(l => l.level && l.message);
+  const chip = {
+    pending: '<span style="margin-left:8px;font-size:0.75rem;font-weight:400;color:var(--text-tertiary);">等待 DSH 引擎领取...</span>',
+    running: '<span style="margin-left:8px;font-size:0.75rem;font-weight:400;color:var(--blue);">执行中</span>',
+    completed: '<span style="margin-left:8px;font-size:0.75rem;font-weight:400;color:var(--green);">已完成</span>',
+    failed: '<span style="margin-left:8px;font-size:0.75rem;font-weight:400;color:var(--red, #dc2626);">失败</span>',
+  }[status] || '';
+  if (!rich.length) {
+    return `
+      <div class="section-title" style="margin-top:0.5rem;">📜 执行日志 ${chip}</div>
+      <div class="log-feed"><div class="log-line log-info"><span class="log-msg">暂无日志</span></div></div>`;
+  }
+  const levelClass = { system: 'log-system', info: 'log-info', success: 'log-success', error: 'log-error', warn: 'log-warn' };
+  const items = rich.map(l => `
+    <div class="log-line ${levelClass[l.level] || 'log-info'}">
+      <span class="log-time">${formatTime(l.timestamp)}</span>
+      <span class="log-level">${escapeHtml(l.level)}</span>
+      <span class="log-msg">${escapeHtml(l.message)}</span>
+    </div>`).join('');
+  return `
+    <div class="section-title" style="margin-top:0.5rem;">📜 执行日志 ${chip}</div>
+    <div class="log-feed">${items}</div>`;
+}
+
+function renderAgentTeams(data) {
+  if (!data) return '';
+  const team = (data && data.team) ? data.team : data;
+  if (!team || !team.name) return '';
+
+  const members = (team.members || []).map(m => {
+    const act = m.activity || m.status || '';
+    return `<span class="team-member"><span class="member-dot"></span>${escapeHtml(m.name)} · ${escapeHtml(m.role || '')}${act ? ` · ${escapeHtml(act)}` : ''}</span>`;
+  }).join('');
+
+  const tasks = (team.tasks || []).map(t => {
+    const st = t.status === 'completed' ? '<span class="task-status done">✅ 已完成</span>'
+      : t.status === 'running' ? '<span class="task-status running">⏳ 进行中</span>'
+      : '<span class="task-status pending">⬜ 待执行</span>';
+    return `
+      <div class="team-task">
+        <div class="team-task-head">
+          <span class="task-id">${escapeHtml(t.id)}</span>
+          <span class="task-subject">${escapeHtml(t.subject || t.label || '')}</span>
+          <span class="task-assignee">@${escapeHtml(t.assignee || '')}</span>
+          ${st}
+        </div>
+        ${t.output ? `<div class="team-task-output">${escapeHtml(t.output)}</div>` : ''}
+      </div>`;
+  }).join('');
+
+  const desc = team.description || '';
+  return `
+    <div class="section-title" style="margin-top:1.5rem;">👥 AgentTeams 团队</div>
+    <div class="team-panel">
+      <div class="team-head">
+        <span class="team-name">${escapeHtml(team.name)}</span>
+        ${team.status ? `<span class="team-desc">状态：${escapeHtml(team.status)}</span>` : ''}
+        ${desc ? `<span class="team-desc">${escapeHtml(desc)}</span>` : ''}
+      </div>
+      <div class="team-members">${members}</div>
+      <div class="team-tasks">${tasks}</div>
+    </div>`;
 }
 
 function renderProgressSteps(logs, status) {
@@ -488,8 +554,10 @@ function renderProgressSteps(logs, status) {
       <div class="section-title">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
         执行进度
+        ${status === 'pending' ? '<span style="margin-left:8px;font-size:0.75rem;font-weight:400;color:var(--text-tertiary);">等待 DSH 引擎领取...（超时将自动切换本地模拟）</span>' : ''}
         ${status === 'running' ? '<span style="margin-left:8px;font-size:0.75rem;font-weight:400;color:var(--blue);">进行中...</span>' : ''}
         ${status === 'completed' ? '<span style="margin-left:8px;font-size:0.75rem;font-weight:400;color:var(--green);">已完成</span>' : ''}
+        ${status === 'failed' ? '<span style="margin-left:8px;font-size:0.75rem;font-weight:400;color:var(--red, #dc2626);">失败</span>' : ''}
       </div>
       <div class="progress-steps">${stepsHtml}</div>
     </div>
@@ -607,6 +675,13 @@ function formatDate(dateStr) {
   const d = new Date(dateStr + (dateStr.includes('T') ? '' : 'T00:00:00'));
   if (isNaN(d.getTime())) return dateStr;
   return d.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+
+function formatTime(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  if (isNaN(d.getTime())) return ts;
+  return d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
 }
 
 // ── System Manager ──

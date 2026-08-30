@@ -47,6 +47,7 @@ db.exec(`
     status TEXT DEFAULT 'running',
     result_data TEXT DEFAULT '',
     logs TEXT DEFAULT '[]',
+    agent_teams_data TEXT DEFAULT '',
     started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     completed_at DATETIME,
     FOREIGN KEY (requirement_id) REFERENCES requirements(id)
@@ -56,6 +57,8 @@ db.exec(`
 // Add columns if upgrading from older version
 try { db.exec(`ALTER TABLE requirements ADD COLUMN system_id INTEGER DEFAULT NULL`); } catch (e) {}
 try { db.exec(`ALTER TABLE executions ADD COLUMN logs TEXT DEFAULT '[]'`); } catch (e) {}
+try { db.exec(`ALTER TABLE executions ADD COLUMN agent_teams_data TEXT DEFAULT ''`); } catch (e) {}
+try { db.exec(`ALTER TABLE executions ADD COLUMN engine_meta TEXT DEFAULT ''`); } catch (e) {}
 
 // Seed some default systems if table is empty
 const sysCount = db.prepare('SELECT COUNT(*) as c FROM systems').get().c;
