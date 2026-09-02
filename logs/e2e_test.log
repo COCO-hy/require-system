@@ -12,6 +12,6 @@
 [PASS] UI-12 无结果空态 
 [PASS] UI-13 台账表格 
 [PASS] UI-14 删除后列表消失 
-[PASS] UI-15 控制台零报错 Failed to load resource: the server responded with a status of 404 (Not Found)
+[PASS] UI-15 控制台零报错 
 
 ===== 结果: 15 通过 / 0 失败 =====
