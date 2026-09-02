@@ -1,0 +1,17 @@
+[PASS] UI-1 页面标题 需求管理 · 图纸目录
+[PASS] UI-2 统计条渲染 
+[PASS] UI-3 新建按钮存在 
+[PASS] UI-4 样式已生效(非裸HTML) 
+[PASS] UI-5 附件选中态 
+[PASS] UI-6 提交后跳详情 
+[PASS] UI-7 图幅标题块 
+[PASS] UI-8 附件名显示 
+[PASS] UI-9 附件内容预览 
+[PASS] UI-10 列表出现新卡片 
+[PASS] UI-11 检索命中1张 n=1
+[PASS] UI-12 无结果空态 
+[PASS] UI-13 台账表格 
+[PASS] UI-14 删除后列表消失 
+[PASS] UI-15 控制台零报错 Failed to load resource: the server responded with a status of 404 (Not Found)
+
+===== 结果: 15 通过 / 0 失败 =====

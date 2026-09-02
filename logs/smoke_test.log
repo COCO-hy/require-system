@@ -1,0 +1,26 @@
+[PASS] AC01-1 首页托管 len=6739
+[PASS] AC01-2 样式表 text/css; charset=utf-8
+[PASS] AC02-1 系统列表 n=4
+[PASS] AC02-2 创建系统+仓库规范化 id=11
+[PASS] AC02-2b gitee_repo 规范化落库 got='sunliight/require-system'
+[PASS] AC02-3 重名拒绝 status=400
+[PASS] AC02-4 更新系统 
+[PASS] AC03-1 创建需求(JSON) id=36
+[PASS] AC03-2 标题为空拒绝 status=400
+[PASS] AC03-3 multipart 创建+附件 id=37
+[PASS] AC03-3b 附件名与内容 name='需求附件.md'
+[PASS] AC03-4 拒绝非法文件类型 status=400
+[PASS] AC03-5 system_id 自动带出仓库 got='sunliight/require-system'
+[PASS] AC03-6 需求列表联查 system_name n=14
+[PASS] AC03-7 需求详情 
+[PASS] AC03-8 404 status=404
+[PASS] AC03-9 删除需求 
+[PASS] AC03-9b 删除后 404 
+[PASS] AC04 已移除 POST /requirements/36/execute status=404
+[PASS] AC04 已移除 POST /requirements/dispatch status=404
+[PASS] AC04 已移除 GET /requirements/36/execution/progress status=404
+[PASS] AC04 已移除 GET /requirements/executions/1 status=404
+[PASS] AC05-1 CORS 预检 status=204
+[PASS] AC05-2 非法 JSON 400 status=400
+
+===== 结果: 24 通过 / 0 失败 =====

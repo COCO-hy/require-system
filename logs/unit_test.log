@@ -1,0 +1,22 @@
+test_create_and_seed (test_app.TestInitDb.test_create_and_seed) ... ok
+test_idempotent (test_app.TestInitDb.test_idempotent) ... ok
+test_empty_values (test_app.TestNormalizeGiteeRepo.test_empty_values) ... ok
+test_http_url (test_app.TestNormalizeGiteeRepo.test_http_url) ... ok
+test_https_url (test_app.TestNormalizeGiteeRepo.test_https_url) ... ok
+test_https_url_with_git (test_app.TestNormalizeGiteeRepo.test_https_url_with_git) ... ok
+test_short_form (test_app.TestNormalizeGiteeRepo.test_short_form) ... ok
+test_slashes (test_app.TestNormalizeGiteeRepo.test_slashes) ... ok
+test_ssh (test_app.TestNormalizeGiteeRepo.test_ssh) ... ok
+test_hit_file (test_app.TestResolvePublicPath.test_hit_file) ... ok
+test_spa_fallback (test_app.TestResolvePublicPath.test_spa_fallback) ... ok
+test_traversal_rejected (test_app.TestResolvePublicPath.test_traversal_rejected) ... ok
+test_empty_returns_fallback (test_app.TestSafeParse.test_empty_returns_fallback) ... ok
+test_invalid_returns_fallback (test_app.TestSafeParse.test_invalid_returns_fallback) ... ok
+test_valid (test_app.TestSafeParse.test_valid) ... ok
+
+----------------------------------------------------------------------
+Ran 15 tests in 0.008s
+
+OK
+[DB] Seeded 4 default systems
+[DB] Seeded 4 default systems
