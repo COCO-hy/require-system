@@ -256,6 +256,7 @@ async function renderDetail(id) {
     </div>
 
     <div class="detail-actions">
+      <button class="draft-btn primary" onclick="exportRequirement(${d.id})">导出图纸 JSON</button>
       <button class="danger-btn" onclick="deleteRequirement(${d.id}, ${JSON.stringify(d.title).replace(/"/g, '&quot;')})">
         作废并归档（删除）
       </button>
@@ -271,6 +272,14 @@ async function deleteRequirement(id, title) {
   } catch (e) {
     alert('删除失败：' + e.message);
   }
+}
+
+function exportRequirement(id) {
+  // 直接发起下载，不经过 JSON 解析——后端返回 Content-Disposition 触发另存
+  const a = document.createElement('a');
+  a.href = API_BASE + '/' + id + '/export';
+  a.download = '';
+  a.click();
 }
 
 // ═══════════ 登记新图纸 ═══════════

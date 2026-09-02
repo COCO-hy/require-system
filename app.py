@@ -413,6 +413,42 @@ def handle_create_requirement(h, body=None, multipart_file=None):
         conn.close()
 
 
+def handle_export_requirement(h, req_id):
+    """导出需求为 JSON 文件（Content-Disposition: attachment 触发浏览器下载）"""
+    conn = db()
+    try:
+        data = _get_requirement(conn, req_id)
+        if not data:
+            send_json(h, 404, {"success": False, "error": "需求不存在"})
+            return
+        # 附件内容纳入导出
+        if data.get("file_path") and os.path.exists(data["file_path"]):
+            if os.path.splitext(data["file_path"])[1].lower() in {".md", ".txt", ".json", ".yaml", ".yml", ".csv"}:
+                try:
+                    with open(data["file_path"], "r", encoding="utf-8") as f:
+                        data["file_content"] = f.read(64 * 1024)
+                except Exception:
+                    data["file_content"] = None
+            else:
+                data["file_content"] = "[二进制文件，不纳入文本导出]"
+        data.pop("file_path", None)
+        data.pop("system_id", None)
+        data.pop("system_name", None)
+        body = json.dumps(data, ensure_ascii=False, indent=2).encode("utf-8")
+        fname = data.get("project_number") or f"REQ-{req_id}"
+        h.send_response(200)
+        h.send_header("Content-Type", "application/json; charset=utf-8")
+        h.send_header("Content-Disposition", f'attachment; filename="{fname}.json"')
+        h.send_header("Access-Control-Allow-Origin", "*")
+        h.send_header("Content-Length", str(len(body)))
+        h.end_headers()
+        h.wfile.write(body)
+    except Exception as e:
+        send_json(h, 500, {"success": False, "error": str(e)})
+    finally:
+        conn.close()
+
+
 def handle_delete_requirement(h, req_id):
     conn = db()
     try:
@@ -573,6 +609,11 @@ def route_requirements(h, method, rel, query):
             return handle_get_requirement(h, rid)
         if method == "DELETE":
             return handle_delete_requirement(h, rid)
+        return send_json(h, 405, {"success": False, "error": "Method Not Allowed"})
+
+    if len(seg) == 2 and seg[0].isdigit() and seg[1] == "export":
+        if method == "GET":
+            return handle_export_requirement(h, int(seg[0]))
         return send_json(h, 405, {"success": False, "error": "Method Not Allowed"})
 
     return send_json(h, 404, {"success": False, "error": "not found"})
