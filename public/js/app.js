@@ -256,7 +256,7 @@ async function renderDetail(id) {
     </div>
 
     <div class="detail-actions">
-      <button class="draft-btn primary" onclick="extractRequirement(${d.id})">提取图纸数据</button>
+      <button class="draft-btn primary" onclick="extractRequirement(${d.id}, this)">提取图纸数据</button>
       <button class="danger-btn" onclick="deleteRequirement(${d.id}, ${JSON.stringify(d.title).replace(/"/g, '&quot;')})">
         作废并归档（删除）
       </button>
@@ -274,15 +274,20 @@ async function deleteRequirement(id, title) {
   }
 }
 
-async function extractRequirement(id) {
+async function extractRequirement(id, btn) {
+  const el = btn || document.activeElement;
+  const orig = el ? el.textContent : '';
   try {
+    if (el) { el.textContent = '提取中…'; el.disabled = true; }
     const res = await fetch(API_BASE + '/' + id + '/export');
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
     console.log('══════ 图纸数据 · REQ #' + id + ' ══════');
     console.log(JSON.stringify(data, null, 2));
     console.log('══════ 可复制以上 JSON 用于后续操作 ══════');
+    if (el) { el.textContent = '已提取 ✓（看控制台）'; setTimeout(() => { el.textContent = orig; el.disabled = false; }, 2000); }
   } catch (e) {
+    if (el) { el.textContent = orig; el.disabled = false; }
     alert('提取失败：' + e.message);
   }
 }
