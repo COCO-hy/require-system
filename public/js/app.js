@@ -256,7 +256,7 @@ async function renderDetail(id) {
     </div>
 
     <div class="detail-actions">
-      <button class="draft-btn primary" onclick="exportRequirement(${d.id})">导出图纸 JSON</button>
+      <button class="draft-btn primary" onclick="extractRequirement(${d.id})">提取图纸数据</button>
       <button class="danger-btn" onclick="deleteRequirement(${d.id}, ${JSON.stringify(d.title).replace(/"/g, '&quot;')})">
         作废并归档（删除）
       </button>
@@ -274,12 +274,15 @@ async function deleteRequirement(id, title) {
   }
 }
 
-function exportRequirement(id) {
-  // 直接发起下载，不经过 JSON 解析——后端返回 Content-Disposition 触发另存
-  const a = document.createElement('a');
-  a.href = API_BASE + '/' + id + '/export';
-  a.download = '';
-  a.click();
+async function extractRequirement(id) {
+  try {
+    const data = await api('GET', '/' + id + '/export');
+    console.log('══════ 图纸数据 · REQ #' + id + ' ══════');
+    console.log(JSON.stringify(data, null, 2));
+    console.log('══════ 可复制以上 JSON 用于后续操作 ══════');
+  } catch (e) {
+    alert('提取失败：' + e.message);
+  }
 }
 
 // ═══════════ 登记新图纸 ═══════════
