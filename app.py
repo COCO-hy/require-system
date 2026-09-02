@@ -14,6 +14,8 @@ from pathlib import Path
 from typing import Optional
 from urllib.parse import urlparse
 
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, File, Form, Request, Response, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -31,9 +33,6 @@ MAX_FILE_SIZE = 10 * 1024 * 1024
 
 app = FastAPI(title="需求管理系统", version="2.0", docs_url="/docs")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
-
-
-# ── 工具 ──
 def now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
@@ -71,7 +70,6 @@ def get_db():
 
 
 # ── 初始化 ──
-@app.on_event("startup")
 def startup():
     os.makedirs(DB_PATH.parent, exist_ok=True)
     os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -122,6 +120,16 @@ def startup():
         conn.commit()
     finally:
         conn.close()
+
+
+# lifespan：服务启动时初始化 DB（替代弃用的 on_event）
+@asynccontextmanager
+async def lifespan(_app):
+    startup()
+    yield
+
+
+app.router.lifespan_context = lifespan
 
 
 # ── 请求模型 ──
@@ -419,3 +427,18 @@ async def catch_all(path: str, request: Request):
 @app.exception_handler(RequestValidationError)
 async def validation_handler(request: Request, exc: RequestValidationError):
     return JSONResponse({"success": False, "error": "Invalid JSON"}, status_code=400)
+
+
+# ── 直接启动：python3 app.py ──
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.environ.get("PORT") or 3001)
+    print(f"""
+  ╔═══════════════════════════════════════════╗
+  ║    需求管理系统（FastAPI）已启动 🚀      ║
+  ║                                           ║
+  ║  本地访问: http://localhost:{port}        ║
+  ║  接口文档: http://localhost:{port}/docs   ║
+  ╚═══════════════════════════════════════════╝
+  """)
+    uvicorn.run(app, host="0.0.0.0", port=port)
