@@ -257,9 +257,14 @@ async function renderDetail(id) {
 
     <div class="detail-actions">
       <button class="draft-btn primary" onclick="extractRequirement(${d.id}, this)">提取图纸数据</button>
+      <button class="draft-btn primary" onclick="relayRequirement(${d.id}, this)">下发执行 →</button>
       <button class="danger-btn" onclick="deleteRequirement(${d.id}, ${JSON.stringify(d.title).replace(/"/g, '&quot;')})">
         作废并归档（删除）
       </button>
+    </div>
+    <div class="relay-result" id="relayResult" hidden>
+      <div class="spec-head"><span class="zh">下发回执</span><span class="en">RELAY&nbsp;RESPONSE</span></div>
+      <pre class="relay-body" id="relayBody"></pre>
     </div>
   `;
 }
@@ -289,6 +294,62 @@ async function extractRequirement(id, btn) {
   } catch (e) {
     if (el) { el.textContent = orig; el.disabled = false; }
     alert('提取失败：' + e.message);
+  }
+}
+
+// ═══════════ 中继：下发执行 ═══════════
+async function relayRequirement(id, btn) {
+  const el = btn || document.activeElement;
+  const orig = el ? el.textContent : '';
+  const panel = document.getElementById('relayResult');
+  const body = document.getElementById('relayBody');
+  try {
+    if (el) { el.textContent = '下发中…'; el.disabled = true; }
+    if (panel) panel.hidden = true;
+    const res = await fetch(API_BASE + '/' + id + '/relay', { method: 'POST' });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || ('HTTP ' + res.status));
+    const st = (data.data || {}).status;
+    const bd = (data.data || {}).body || '(空响应体)';
+    if (panel && body) {
+      body.textContent = `[HTTP ${st}]\n${bd}`;
+      panel.hidden = false;
+    }
+    console.log(`[RELAY] 需求 #${id} → 下游返回 HTTP ${st}`);
+    if (el) { el.textContent = '已下发 ✓'; setTimeout(() => { el.textContent = orig; el.disabled = false; }, 2000); }
+  } catch (e) {
+    if (el) { el.textContent = orig; el.disabled = false; }
+    if (panel && body) {
+      body.textContent = '下发失败：' + e.message;
+      panel.hidden = false;
+    }
+  }
+}
+
+// ═══════════ 中继设置 ═══════════
+async function showRelaySettings() {
+  document.getElementById('relayModalOverlay').classList.add('open');
+  hideFormError('relayFormError');
+  try {
+    const settings = await api('GET', '', undefined, '/api/settings');
+    document.getElementById('relayUrl').value = settings.relay_url || '';
+  } catch (e) { /* 保持空 */ }
+}
+function hideRelaySettings() {
+  document.getElementById('relayModalOverlay').classList.remove('open');
+}
+async function saveRelaySettings() {
+  hideFormError('relayFormError');
+  const url = document.getElementById('relayUrl').value.trim();
+  if (url && !/^https?:\/\//i.test(url)) {
+    showFormError('relayFormError', 'URL 需以 http:// 或 https:// 开头');
+    return;
+  }
+  try {
+    await api('PUT', '', { relay_url: url }, '/api/settings');
+    hideRelaySettings();
+  } catch (e) {
+    showFormError('relayFormError', e.message);
   }
 }
 
@@ -370,8 +431,11 @@ document.getElementById('modalOverlay').addEventListener('mousedown', (e) => {
 document.getElementById('systemModalOverlay').addEventListener('mousedown', (e) => {
   if (e.target === e.currentTarget) hideSystemsManager();
 });
+document.getElementById('relayModalOverlay').addEventListener('mousedown', (e) => {
+  if (e.target === e.currentTarget) hideRelaySettings();
+});
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') { hideCreateModal(); hideSystemsManager(); }
+  if (e.key === 'Escape') { hideCreateModal(); hideSystemsManager(); hideRelaySettings(); }
 });
 
 // ═══════════ 系统台账 ═══════════

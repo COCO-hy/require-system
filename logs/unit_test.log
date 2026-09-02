@@ -3,6 +3,15 @@ test_create_json (test_app.TestApi.test_create_json) ... ok
 test_dispatch_removed (test_app.TestApi.test_dispatch_removed) ... ok
 test_execute_removed (test_app.TestApi.test_execute_removed) ... ok
 test_export (test_app.TestApi.test_export) ... ok
+test_relay_dead_downstream (test_app.TestApi.test_relay_dead_downstream) ... ok
+test_relay_forwards_to_downstream (test_app.TestApi.test_relay_forwards_to_downstream)
+起线程 mock 下游，验证转发内容完整 ... /Users/hy/miniforge3/lib/python3.12/unittest/case.py:589: ResourceWarning: unclosed <socket.socket fd=3, family=2, type=1, proto=0, laddr=('127.0.0.1', 52349)>
+  if method() is not None:
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+ok
+test_relay_no_config (test_app.TestApi.test_relay_no_config) ... ok
+test_relay_not_found (test_app.TestApi.test_relay_not_found) ... ok
+test_settings_roundtrip (test_app.TestApi.test_settings_roundtrip) ... ok
 test_static (test_app.TestApi.test_static) ... ok
 test_system_duplicate (test_app.TestApi.test_system_duplicate) ... ok
 test_systems_seeded (test_app.TestApi.test_systems_seeded) ... ok
@@ -17,6 +26,6 @@ test_slashes (test_app.TestNormalize.test_slashes) ... ok
 test_ssh (test_app.TestNormalize.test_ssh) ... ok
 
 ----------------------------------------------------------------------
-Ran 17 tests in 0.026s
+Ran 22 tests in 3.811s
 
 OK

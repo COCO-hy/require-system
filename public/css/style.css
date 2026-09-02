@@ -487,7 +487,21 @@ body {
 .detail-titleblock .tb-cell:nth-last-child(-n+3) { border-bottom: none; }
 @media (max-width: 640px) { .detail-titleblock { grid-template-columns: 1fr 1fr; } }
 
-.detail-actions { margin-top: 22px; display: flex; justify-content: center; gap: 12px; }
+.detail-actions { margin-top: 22px; display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
+
+/* 下发回执面板 */
+.relay-result { margin-top: 18px; }
+.relay-result .spec-head .zh { color: var(--blueprint); }
+.relay-body {
+  margin-top: 10px;
+  border: 1px solid var(--paper-line);
+  border-left: 3px solid var(--blueprint);
+  background: #fbf8ef;
+  border-radius: 2px; padding: 14px 16px;
+  max-height: 300px; overflow: auto;
+  font-family: var(--font-mono); font-size: 0.74rem; line-height: 1.75;
+  color: var(--ink); white-space: pre-wrap; word-break: break-word;
+}
 .danger-btn {
   font-family: var(--font-sans); font-size: 0.84rem;
   color: #a03318; background: transparent;

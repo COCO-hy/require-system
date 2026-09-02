@@ -169,9 +169,54 @@ check("AC05-1 CORS 预检", s == 204 and hdr.get("access-control-allow-origin") 
 s, _, _b = raw("POST", BASE + "/systems", b"{bad json", {"Content-Type": "application/json"})
 check("AC05-2 非法 JSON 400", s == 400, f"status={s}")
 
+# ── AC-06 中继转发 ──
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
+received = {}
+
+class _Echo(BaseHTTPRequestHandler):
+    def do_POST(self):
+        n = int(self.headers.get("Content-Length", 0))
+        received["path"] = self.path
+        received["body"] = self.rfile.read(n).decode("utf-8")
+        resp = b'{"ok": true}'
+        self.send_response(201)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(resp)))
+        self.end_headers()
+        self.wfile.write(resp)
+    def log_message(self, *a): pass
+
+srv = HTTPServer(("127.0.0.1", 0), _Echo)
+tport = srv.server_address[1]
+threading.Thread(target=srv.serve_forever, daemon=True).start()
+
+s, got = req("POST", "/requirements", {"title": "中继冒烟需求"})
+rid_r = got.get("data", {}).get("id")
+
+req("PUT", "/settings", {"relay_url": ""})  # 清残留，保证从"未配置"状态开始
+s, got = req("POST", f"/requirements/{rid_r}/relay")
+check("AC06-1 未配置中继地址报错", s == 400 and "未配置" in got.get("error", ""), f"status={s}")
+
+req("PUT", "/settings", {"relay_url": f"http://127.0.0.1:{tport}/intake"})
+s, got = req("POST", f"/requirements/{rid_r}/relay")
+down = got.get("data") or {}
+fwd_ok = down.get("status") == 201 and received.get("path") == "/intake" \
+         and json.loads(received.get("body", "{}")).get("title") == "中继冒烟需求"
+check("AC06-2 转发到下游", s == 200 and fwd_ok, f"status={s} down={down.get('status')}")
+
+req("PUT", "/settings", {"relay_url": "http://127.0.0.1:1/dead"})
+s, got = req("POST", f"/requirements/{rid_r}/relay")
+check("AC06-3 下游不可达暴露失败", s == 502 or (got.get("data") or {}).get("status") == 502, f"status={s}")
+
+srv.shutdown()
+
 # 清理
 req("DELETE", f"/requirements/{rid}")
 req("DELETE", f"/requirements/{rid3}")
+req("DELETE", f"/requirements/{rid_r}")
+req("PUT", "/settings", {"relay_url": ""})
 req("DELETE", f"/systems/{sid}")
 
 print(f"\n===== 结果: {ok} 通过 / {fail} 失败 =====")

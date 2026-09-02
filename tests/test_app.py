@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """REQ-2025-002 单元测试：FastAPI 版 app"""
+import json
 import sys
 import tempfile
 import unittest
@@ -100,6 +101,64 @@ class TestApi(unittest.TestCase):
         r2 = self.client.get(f"/api/requirements/{rid}/export")
         self.assertEqual(r2.status_code, 200)
         self.assertIn("title", r2.json())
+
+    def test_settings_roundtrip(self):
+        self.assertEqual(self.client.put("/api/settings", json={"relay_url": "http://x/y"}).status_code, 200)
+        s = self.client.get("/api/settings").json()["data"]
+        self.assertEqual(s.get("relay_url"), "http://x/y")
+
+    def test_relay_no_config(self):
+        self.client.put("/api/settings", json={"relay_url": ""})
+        r = self.client.post("/api/requirements/1/relay")
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("未配置", r.json()["error"])
+
+    def test_relay_not_found(self):
+        r = self.client.post("/api/requirements/999999/relay")
+        self.assertEqual(r.status_code, 404)
+
+    def test_relay_forwards_to_downstream(self):
+        """起线程 mock 下游，验证转发内容完整"""
+        import threading
+        from http.server import BaseHTTPRequestHandler, HTTPServer
+        received = {}
+        class Echo(BaseHTTPRequestHandler):
+            def do_POST(self):
+                n = int(self.headers.get("Content-Length", 0))
+                received["path"] = self.path
+                received["ctype"] = self.headers.get("Content-Type", "")
+                received["body"] = self.rfile.read(n).decode("utf-8")
+                resp = b'{"ok": true}'
+                self.send_response(201)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(resp)))
+                self.end_headers()
+                self.wfile.write(resp)
+            def log_message(self, *a): pass
+        srv = HTTPServer(("127.0.0.1", 0), Echo)
+        port = srv.server_address[1]
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        try:
+            rid = self.client.post("/api/requirements", json={"title": "中继测试", "description": "RD"}).json()["data"]["id"]
+            self.client.put("/api/settings", json={"relay_url": f"http://127.0.0.1:{port}/intake"})
+            r = self.client.post(f"/api/requirements/{rid}/relay")
+            self.assertEqual(r.status_code, 200)
+            body = r.json()["data"]
+            self.assertEqual(body["status"], 201)
+            self.assertEqual(received["path"], "/intake")
+            self.assertIn("application/json", received["ctype"])
+            payload = json.loads(received["body"])
+            self.assertEqual(payload["title"], "中继测试")
+            self.assertIn("file_content", payload)
+        finally:
+            srv.shutdown()
+
+    def test_relay_dead_downstream(self):
+        self.client.put("/api/settings", json={"relay_url": "http://127.0.0.1:1/dead"})
+        rid = self.client.post("/api/requirements", json={"title": "死链"}).json()["data"]["id"]
+        r = self.client.post(f"/api/requirements/{rid}/relay")
+        # 下游不可达：要么 502 err，要么代理回的 502 回执——都算正确暴露失败
+        self.assertTrue(r.status_code == 502 or r.json()["data"]["status"] == 502)
 
 
 if __name__ == "__main__":

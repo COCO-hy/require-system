@@ -4,11 +4,14 @@
 启动：uvicorn app:app --reload --port 3001
 """
 
+import json
 import os
 import random
 import re
 import sqlite3
 import time
+import urllib.error
+import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -99,6 +102,10 @@ def startup():
               created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
               updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
               FOREIGN KEY (system_id) REFERENCES systems(id)
+            );
+            CREATE TABLE IF NOT EXISTS settings (
+              key TEXT PRIMARY KEY,
+              value TEXT DEFAULT ''
             );
             """
         )
@@ -314,6 +321,94 @@ def export_requirement(rid: int):
         return data
     finally:
         conn.close()
+
+
+# ──────────────── 中继：需求详情 → 下游接口 ────────────────
+@app.get("/api/settings")
+def get_settings():
+    conn = get_db()
+    try:
+        rows = conn.execute("SELECT key, value FROM settings").fetchall()
+        return ok({r["key"]: r["value"] for r in rows})
+    finally:
+        conn.close()
+
+
+@app.put("/api/settings")
+def update_settings(body: dict):
+    conn = get_db()
+    try:
+        for k, v in (body or {}).items():
+            if not isinstance(k, str):
+                continue
+            conn.execute(
+                "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                (k, str(v)),
+            )
+        conn.commit()
+        return ok()
+    except Exception as e:
+        conn.rollback()
+        return err(str(e), 500)
+    finally:
+        conn.close()
+
+
+@app.post("/api/requirements/{rid}/relay")
+def relay_requirement(rid: int):
+    """把需求完整数据 POST 到配置的中继目标地址，返回下游响应"""
+    conn = get_db()
+    try:
+        # 1. 需求数据（复用 export 逻辑）——先校验资源存在
+        rrow = conn.execute(
+            """SELECT r.*, s.name AS system_name
+               FROM requirements r
+               LEFT JOIN systems s ON r.system_id = s.id
+               WHERE r.id = ?""",
+            (rid,),
+        ).fetchone()
+        if not rrow:
+            return err("需求不存在", 404)
+        data = dict(rrow)
+        if data.get("file_path") and os.path.exists(data["file_path"]):
+            ext = os.path.splitext(data["file_path"])[1].lower()
+            if ext in {".md", ".txt", ".json", ".yaml", ".yml", ".csv"}:
+                try:
+                    with open(data["file_path"], encoding="utf-8") as f:
+                        data["file_content"] = f.read(64 * 1024)
+                except Exception:
+                    data["file_content"] = None
+            else:
+                data["file_content"] = "[二进制文件，不纳入转发]"
+        else:
+            data["file_content"] = None
+        data.pop("file_path", None)
+
+        # 2. 目标地址
+        row = conn.execute("SELECT value FROM settings WHERE key = 'relay_url'").fetchone()
+        target = (row["value"] if row else "") or ""
+    finally:
+        conn.close()
+
+    if not target.strip():
+        return err("未配置中继目标地址：请先在「中继设置」里填写下游接口 URL", 400)
+
+    # 3. 转发（连接已释放，避免长耗时占连接）
+    payload = json.dumps(data, ensure_ascii=False).encode("utf-8")
+    req = urllib.request.Request(
+        target.strip(),
+        data=payload,
+        method="POST",
+        headers={"Content-Type": "application/json; charset=utf-8"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return ok({"status": resp.status, "body": resp.read().decode("utf-8", "replace")[:8192]})
+    except urllib.error.HTTPError as e:
+        # 下游返回非 2xx：仍是成功的中继，把下游状态与报文带回去
+        return ok({"status": e.code, "body": e.read().decode("utf-8", "replace")[:8192]})
+    except Exception as e:
+        return err(f"中继失败：{e}", 502)
 
 
 def _apply_system_repo(conn, system_id, gitee_repo):

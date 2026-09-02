@@ -24,6 +24,10 @@
         <span class="desk-code">SHEET&nbsp;A4</span>
       </div>
       <div class="desk-actions">
+        <button class="draft-btn" onclick="showRelaySettings()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="5" cy="12" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="19" cy="18" r="2"/><path d="M7 12h8M15 6h-2a4 4 0 0 0-4 4v0a4 4 0 0 0 4 4h2"/></svg>
+          中继设置
+        </button>
         <button class="draft-btn" onclick="showSystemsManager()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
           系统台账
@@ -145,6 +149,31 @@
     </div>
   </div>
 
-  <script src="/js/app.js?v=3.1"></script>
+  <!-- ═══ 中继设置 ═══ -->
+  <div class="modal-overlay" id="relayModalOverlay">
+    <div class="modal-sheet">
+      <div class="sheet-frame">
+        <div class="modal-head">
+          <div>
+            <h2 class="modal-title">中继设置</h2>
+            <span class="modal-code">RELAY&nbsp;·&nbsp;下游接口地址配置</span>
+          </div>
+          <button class="modal-close" onclick="hideRelaySettings()" aria-label="关闭">✕</button>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="relayUrl">下游接口 URL <i class="req-mark">*</i></label>
+          <input class="form-input mono" type="text" id="relayUrl" placeholder="http://下游服务/api/xxx">
+          <div class="form-hint">「下发执行」时，需求完整数据将以 POST + JSON 转发到该地址；下游返回会原样回显</div>
+        </div>
+        <div class="form-error" id="relayFormError" hidden></div>
+        <div class="form-actions">
+          <button type="button" class="draft-btn" onclick="hideRelaySettings()">取消</button>
+          <button type="button" class="draft-btn primary" onclick="saveRelaySettings()">保存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/app.js?v=3.2"></script>
 </body>
 </html>
