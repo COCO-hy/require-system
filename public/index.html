@@ -3,125 +3,148 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>需求管理系统</title>
+  <title>需求管理 · 图纸目录</title>
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
 
-  <!-- Header -->
-  <header class="app-header">
-    <div class="header-inner">
-      <a href="/" class="logo" onclick="event.preventDefault(); navigate('/')">
-        <span class="logo-icon">R</span>
-        <span>需求管理系统</span>
+  <!-- ═══ 制图桌横幅 ═══ -->
+  <header class="desk-bar">
+    <div class="desk-bar-inner">
+      <a href="/" class="brand" onclick="event.preventDefault(); navigate('/')">
+        <span class="brand-stamp">需</span>
+        <span class="brand-text">
+          <span class="brand-title">需求管理</span>
+          <span class="brand-sub">DRAWING&nbsp;INDEX&nbsp;·&nbsp;图纸目录</span>
+        </span>
       </a>
-      <div class="header-actions">
-        <button class="btn btn-secondary btn-sm" onclick="navigate('/')">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-          需求列表
+      <div class="desk-meta">
+        <span class="desk-code">DWG.NO&nbsp;<em id="deskCount">--</em></span>
+        <span class="desk-sep"></span>
+        <span class="desk-code">SHEET&nbsp;A4</span>
+      </div>
+      <div class="desk-actions">
+        <button class="draft-btn" onclick="showSystemsManager()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          系统台账
+        </button>
+        <button class="draft-btn primary" onclick="showCreateModal()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+          登记新图纸
         </button>
       </div>
     </div>
+    <div class="desk-hatch"></div>
   </header>
 
-  <!-- Main Content -->
-  <main class="container" id="app">
-    <div class="loading-overlay">
-      <div class="loading-spinner"></div>
-      加载中...
-    </div>
+  <!-- ═══ 主内容 ═══ -->
+  <main class="desk" id="app">
+    <div class="loading-overlay"><div class="crosshair-spin"></div>展平图纸中…</div>
   </main>
 
-  <!-- Create Modal -->
+  <!-- ═══ 新建需求（图纸登记单） ═══ -->
   <div class="modal-overlay" id="modalOverlay">
-    <div class="modal">
-      <div class="modal-header">
-        <h2 class="modal-title">新建需求</h2>
-        <button class="modal-close" onclick="hideCreateModal()">✕</button>
+    <div class="modal-sheet">
+      <div class="sheet-frame">
+        <div class="modal-head">
+          <div>
+            <h2 class="modal-title">图纸登记单</h2>
+            <span class="modal-code">FORM&nbsp;·&nbsp;REQ-REG-01</span>
+          </div>
+          <button class="modal-close" onclick="hideCreateModal()" aria-label="关闭">✕</button>
+        </div>
+        <form id="createForm" onsubmit="event.preventDefault(); submitCreate()">
+          <div class="form-group">
+            <label class="form-label" for="title">需求标题 <i class="req-mark">*</i></label>
+            <input class="form-input" type="text" id="title" name="title" placeholder="例：用户登录页面 UI 优化" required>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="system_id">所属系统</label>
+              <select class="form-input" id="system_id" name="system_id" onchange="onSystemPicked()">
+                <option value="">— 未指定 —</option>
+              </select>
+              <div class="form-hint">选定后自动带出该系统的 Gitee 仓库</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="project_number">需求号</label>
+              <input class="form-input mono" type="text" id="project_number" name="project_number" placeholder="REQ-2025-001">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="description">需求描述</label>
+            <textarea class="form-textarea" id="description" name="description" placeholder="技术要求、验收标准、背景…"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">附件图纸</label>
+            <div class="form-file">
+              <input class="form-file-input" type="file" id="file" name="file" onchange="handleFileSelect(this)">
+              <div class="form-file-label" id="fileLabel">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                <span id="fileLabelText">粘贴附件（.md / .txt / .pdf / .json 等）</span>
+              </div>
+            </div>
+            <div class="form-hint">白名单：.md .txt .pdf .doc .docx .json .yaml .yml .csv，≤ 10MB</div>
+          </div>
+
+          <div class="form-error" id="createFormError" hidden></div>
+
+          <div class="form-actions">
+            <button type="button" class="draft-btn" onclick="hideCreateModal()">作废</button>
+            <button type="submit" class="draft-btn primary" id="createSubmitBtn">盖章登记</button>
+          </div>
+        </form>
       </div>
-      <form id="createForm" onsubmit="event.preventDefault(); submitCreate()">
-        <div class="form-group">
-          <label class="form-label" for="title">需求标题 *</label>
-          <input class="form-input" type="text" id="title" name="title" placeholder="输入需求标题" required>
-        </div>
+    </div>
+  </div>
 
-        <div class="form-group">
-          <label class="form-label" for="system_id">所属系统</label>
-          <select class="form-input" id="system_id" name="system_id">
-            <option value="">— 请选择系统 —</option>
-          </select>
-          <div class="form-hint">选择系统后自动关联 Gitee 仓库</div>
+  <!-- ═══ 系统台账 ═══ -->
+  <div class="modal-overlay" id="systemModalOverlay">
+    <div class="modal-sheet modal-lg">
+      <div class="sheet-frame">
+        <div class="modal-head">
+          <div>
+            <h2 class="modal-title">系统台账</h2>
+            <span class="modal-code">LEDGER&nbsp;·&nbsp;SYS-01&nbsp;·&nbsp;系统与 Gitee 仓库映射</span>
+          </div>
+          <button class="modal-close" onclick="hideSystemsManager()" aria-label="关闭">✕</button>
         </div>
-
-        <div class="form-group">
-          <label class="form-label" for="project_number">需求号</label>
-          <input class="form-input" type="text" id="project_number" name="project_number" placeholder="例如: REQ-2024-001">
-          <div class="form-hint">项目唯一标识</div>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label" for="description">需求描述</label>
-          <textarea class="form-textarea" id="description" name="description" placeholder="详细描述需求内容..."></textarea>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">上传附件</label>
-          <div class="form-file">
-            <input class="form-file-input" type="file" id="file" name="file" onchange="handleFileSelect(this)">
-            <div class="form-file-label" id="fileLabel">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-              选择文件 (支持 .md .txt .pdf .json 等)
+        <div id="systemsManagerBody">
+          <div class="ledger-toolbar">
+            <span class="ledger-note">每个系统对应一个 Gitee 仓库，登记图纸时自动关联</span>
+            <button class="draft-btn primary sm" onclick="showAddSystemForm()">+ 立新账</button>
+          </div>
+          <div id="systemsList"></div>
+          <div id="addSystemForm" class="ledger-form" hidden>
+            <h4 class="ledger-form-title">立新账 · NEW SYSTEM</h4>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="sysName">系统名称 <i class="req-mark">*</i></label>
+                <input class="form-input" type="text" id="sysName" placeholder="例：认证服务">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="sysGitee">Gitee 仓库</label>
+                <input class="form-input mono" type="text" id="sysGitee" placeholder="https://gitee.com/org/auth-service">
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="sysDesc">用途说明</label>
+              <textarea class="form-textarea" id="sysDesc" placeholder="可选…" style="min-height:56px;"></textarea>
+            </div>
+            <div class="form-error" id="systemFormError" hidden></div>
+            <div class="form-actions">
+              <button class="draft-btn" onclick="cancelAddSystem()">取消</button>
+              <button class="draft-btn primary" onclick="saveNewSystem()">入账</button>
             </div>
           </div>
         </div>
-
-        <div class="form-actions">
-          <button type="button" class="btn btn-secondary" onclick="hideCreateModal()">取消</button>
-          <button type="submit" class="btn btn-primary">创建需求</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- System Manager Modal -->
-  <div class="modal-overlay" id="systemModalOverlay">
-    <div class="modal modal-lg">
-      <div class="modal-header">
-        <h2 class="modal-title">系统管理</h2>
-        <button class="modal-close" onclick="hideSystemsManager()">✕</button>
-      </div>
-      <div id="systemsManagerBody">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
-          <span style="color:var(--text-secondary);font-size:0.9rem;">管理系统与 Gitee 仓库映射关系</span>
-          <button class="btn btn-primary btn-sm" onclick="showAddSystemForm()">+ 添加系统</button>
-        </div>
-        <div id="systemsList"></div>
-        <div id="addSystemForm" style="display:none;background:var(--bg-card);border-radius:8px;padding:1rem;margin-bottom:1rem;border:1px solid var(--border);">
-          <h4 style="margin:0 0 0.75rem;font-family:var(--font-display);">添加新系统</h4>
-          <div class="form-group">
-            <label class="form-label" for="sysName">系统名称 *</label>
-            <input class="form-input" type="text" id="sysName" placeholder="例如: 认证服务">
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="sysGitee">Gitee 仓库地址</label>
-            <input class="form-input" type="text" id="sysGitee" placeholder="例如: https://gitee.com/org/auth-service">
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="sysDesc">系统描述</label>
-            <textarea class="form-textarea" id="sysDesc" placeholder="可选描述..." style="min-height:60px;"></textarea>
-          </div>
-          <div class="form-actions" style="justify-content:flex-end;">
-            <button class="btn btn-secondary btn-sm" onclick="cancelAddSystem()">取消</button>
-            <button class="btn btn-primary btn-sm" onclick="saveNewSystem()">保存</button>
-          </div>
-        </div>
       </div>
     </div>
   </div>
 
-  <!-- Toast Container -->
-  <div class="toast-container" id="toastContainer"></div>
-
-  <script src="/js/app.js?v=2.0"></script>
+  <script src="/js/app.js?v=3.0"></script>
 </body>
 </html>

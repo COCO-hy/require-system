@@ -1,10 +1,6 @@
-node_modules/
 data/
 uploads/
 .env
-
-# 运行时生成的任务文件 / 引擎日志 / 结果文件
-.dsh-tasks/
 
 # Python 缓存
 __pycache__/
