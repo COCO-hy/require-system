@@ -276,7 +276,9 @@ async function deleteRequirement(id, title) {
 
 async function extractRequirement(id) {
   try {
-    const data = await api('GET', '/' + id + '/export');
+    const res = await fetch(API_BASE + '/' + id + '/export');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
     console.log('══════ 图纸数据 · REQ #' + id + ' ══════');
     console.log(JSON.stringify(data, null, 2));
     console.log('══════ 可复制以上 JSON 用于后续操作 ══════');
